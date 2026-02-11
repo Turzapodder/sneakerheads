@@ -37,7 +37,7 @@ export default function LandingPage() {
                         <li><a href="#">Kids</a></li>
                         <li><a href="#">Customise</a></li>
                         <li><a href="#">Sale</a></li>
-                        <li><Link to="/sign-in">Sign In</Link></li>
+                        <li><Link to="/signin">Sign In</Link></li>
                     </ul>
                 </nav>
 
@@ -86,7 +86,7 @@ export default function LandingPage() {
                             alt="Nike SpeedRep Training Shoe"
                             className="shoe-image"
                         />
-                        <Link to="/sign-up">
+                        <Link to="/signup">
                             <button className="cta-button">Shop now</button>
                         </Link>
                     </div>
