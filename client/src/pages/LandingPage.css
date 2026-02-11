@@ -1,0 +1,312 @@
+/* Scoped styles for Landing Page */
+
+.landing-page {
+  --primary-bg: #f5f5f7;
+  --text-color: #1d1d1f;
+  --accent-color: #dbf247;
+  --secondary-text: #86868b;
+  --transition-speed: 0.4s;
+  
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: var(--primary-bg);
+  color: var(--text-color);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.landing-page * {
+  box-sizing: border-box;
+}
+
+/* Header */
+.landing-page header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 4rem;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 10;
+}
+
+.landing-page .logo svg {
+  width: 60px;
+  height: auto;
+  fill: var(--text-color);
+}
+
+.landing-page nav ul {
+  display: flex;
+  list-style: none;
+  gap: 2rem;
+}
+
+.landing-page nav a {
+  text-decoration: none;
+  color: var(--text-color);
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: color var(--transition-speed);
+}
+
+.landing-page nav a:hover {
+  color: #555;
+}
+
+.landing-page .header-icons {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.landing-page .icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.landing-page .icon-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--text-color);
+  fill: none;
+  stroke-width: 2;
+}
+
+.landing-page .cart-badge {
+  position: relative;
+}
+
+.landing-page .cart-badge::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  background-color: #ff2d55;
+  border-radius: 50%;
+}
+
+/* Main Content */
+.landing-page main {
+  position: relative;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Big Typography Background */
+.landing-page .bg-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 14vw;
+  font-weight: 200;
+  letter-spacing: 1rem;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(0,0,0,0.5);
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.landing-page .bg-text span {
+  display: inline-block;
+  opacity: 0.5;
+}
+
+/* Hero Section */
+.landing-page .hero-container {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  align-items: center;
+  padding: 0 4rem;
+}
+
+.landing-page .hero-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.landing-page .tagline {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  max-width: 250px;
+  font-weight: 500;
+  color: #333;
+  margin-top: 5rem;
+}
+
+.landing-page .dashed-line {
+  position: absolute;
+  left: 6rem;
+  top: 25%;
+  bottom: 25%;
+  width: 1px;
+  border-left: 1px dashed #ccc;
+  z-index: 0;
+}
+
+.landing-page .hero-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.landing-page .shoe-image {
+  width: 120%;
+  max-width: 900px;
+  transform: rotate(-15deg) translateY(-20px);
+  filter: drop-shadow(0 30px 40px rgba(0,0,0,0.25));
+  animation: float 6s ease-in-out infinite;
+  z-index: 10;
+  transition: transform 0.3s ease;
+}
+
+.landing-page .shoe-image:hover {
+  transform: rotate(-12deg) translateY(-30px) scale(1.02);
+}
+
+@keyframes float {
+  0%, 100% { transform: rotate(-15deg) translateY(-20px); }
+  50% { transform: rotate(-15deg) translateY(-40px); }
+}
+
+.landing-page .cta-button {
+  margin-top: 3rem;
+  background-color: var(--accent-color);
+  color: var(--text-color);
+  border: none;
+  padding: 1rem 3rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 10px 20px rgba(219, 242, 71, 0.3);
+  z-index: 20;
+}
+
+.landing-page .cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(219, 242, 71, 0.4);
+}
+
+.landing-page .hero-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  position: relative;
+}
+
+.landing-page .blurred-shoe {
+  width: 200px;
+  filter: blur(8px);
+  opacity: 0.6;
+  transform: rotate(15deg) scale(0.8);
+  position: absolute;
+  right: -50px;
+  bottom: 20%;
+}
+
+.landing-page .product-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  color: #333;
+}
+
+.landing-page .nav-arrow {
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.landing-page .nav-arrow:hover {
+  transform: scale(1.2);
+}
+
+/* Footer elements */
+.landing-page .social-icons {
+  position: absolute;
+  bottom: 3rem;
+  left: 4rem;
+  display: flex;
+  gap: 1.5rem;
+  z-index: 10;
+}
+
+.landing-page .social-icon {
+  width: 20px;
+  height: 20px;
+  fill: #888;
+  transition: fill 0.3s;
+  cursor: pointer;
+}
+
+.landing-page .social-icon:hover {
+  fill: var(--text-color);
+}
+
+.landing-page .promo-text {
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #999;
+  letter-spacing: 0.5px;
+  padding: 1.5rem;
+  background: linear-gradient(to top, rgba(245,245,247,1) 50%, rgba(245,245,247,0));
+  z-index: 5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .landing-page .bg-text { font-size: 16vw; }
+  .landing-page .hero-container { grid-template-columns: 1fr; text-align: center; padding-top: 6rem; }
+  .landing-page .hero-left { display: none; }
+  .landing-page .hero-right { display: none; }
+  .landing-page .dashed-line { display: none; }
+  .landing-page .shoe-image { width: 80%; max-width: 600px; margin: 0 auto; }
+  .landing-page nav { display: none; }
+  .landing-page header { padding: 1.5rem 2rem; }
+  .landing-page .social-icons { left: 2rem; bottom: 2rem; }
+}
+
+@media (max-width: 768px) {
+  .landing-page .bg-text { font-size: 18vw; letter-spacing: 0.5rem; top: 40%; }
+  .landing-page .shoe-image { width: 90%; margin-top: 2rem; }
+  .landing-page .cta-button { margin-top: 2rem; width: 80%; }
+  .landing-page .social-icons { display: none; }
+  .landing-page .promo-text { padding-bottom: 3rem; }
+}
