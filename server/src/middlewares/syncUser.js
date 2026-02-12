@@ -1,4 +1,4 @@
-import { findOrCreate } from '../models/User';
+import User from '../models/User.js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
 
 /**
@@ -42,7 +42,7 @@ const syncUser = async (req, res, next) => {
       || null;
 
     // Find or create user in database
-    const [user, created] = await findOrCreate({
+    const [user, created] = await User.findOrCreate({
       where: { clerkId },
       defaults: {
         clerkId,

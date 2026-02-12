@@ -1,13 +1,16 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { requireAuth } = require('../middlewares/auth');
-const { syncUser } = require('../middlewares/syncUser');
-const {
+import auth from '../middlewares/auth.js';
+import syncUserMiddleware from '../middlewares/syncUser.js';
+import {
   getCurrentUser,
   updateProfile,
   deleteAccount,
   getAllUsers
-} = require('../controllers/authController');
+} from '../controllers/authController.js';
+
+const { requireAuth } = auth;
+const { syncUser } = syncUserMiddleware;
 
 // Apply auth middleware to all routes
 router.use(requireAuth);
@@ -41,4 +44,4 @@ router.delete('/account', deleteAccount);
  */
 router.get('/users', getAllUsers);
 
-module.exports = router;
+export default router;

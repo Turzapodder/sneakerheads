@@ -1,4 +1,4 @@
-import User from '../models/User';
+import User from '../models/User.js';
 import { clerkClient } from '@clerk/clerk-sdk-node';
 
 /**
@@ -154,7 +154,7 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   getCurrentUser,
   updateProfile,
   deleteAccount,

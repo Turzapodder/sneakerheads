@@ -1,8 +1,10 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const { sequelize, testConnection } = require('./src/config/database').default;
-const authRoutes = require('./src/routes/authRoutes').default;
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import database from './src/config/database.js';
+import authRoutes from './src/routes/authRoutes.js';
+
+const { sequelize, testConnection } = database;
 
 // Load environment variables
 dotenv.config();
@@ -108,4 +110,4 @@ const startServer = async () => {
 
 startServer();
 
-module.exports = app;
+export default app;
