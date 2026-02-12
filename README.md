@@ -1,6 +1,9 @@
 # SneakerHead - High-Performance Limited Edition Drop Platform
 
 A full-stack, real-time e-commerce application designed specifically for high-concurrency "flash sale" events. This platform handles massive traffic spikes, prevents inventory overselling through optimistic/pessimistic locking strategies, and manages temporary cart reservations with precision.
+<p align="center">
+  <a href="https://your-link.com"><strong>Try it out- SneakerHeads (LIVE)</strong></a>
+</p>
 
 ## 🌟 Core Features
 
