@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Real-Time Test</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 15px;
+        background: #f7fafc;
+        border-radius: 10px;
+        margin-bottom: 20px;
+      }
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ef4444;
+      }
+      .status-dot.connected {
+        background: #10b981;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      .drops-container {
+        display: grid;
+        gap: 15px;
+      }
+      .drop-card {
+        display: flex;
+        gap: 15px;
+        padding: 15px;
+        background: #f9fafb;
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+        transition: all 0.3s;
+      }
+      .drop-card:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+      }
+      .drop-image {
+        width: 80px;
+        height: 80px;
+        border-radius: 8px;
+        object-fit: cover;
+        border: 2px solid #e5e7eb;
+      }
+      .drop-info {
+        flex: 1;
+      }
+      .drop-name {
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 5px;
+      }
+      .drop-price {
+        font-size: 20px;
+        font-weight: 700;
+        color: #667eea;
+        margin-bottom: 5px;
+      }
+      .stock-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+      .stock-badge.high {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .stock-badge.medium {
+        background: #fed7aa;
+        color: #92400e;
+      }
+      .stock-badge.low {
+        background: #fecaca;
+        color: #991b1b;
+        animation: pulse 2s infinite;
+      }
+      .stock-badge.out {
+        background: #e5e7eb;
+        color: #6b7280;
+      }
+      .reserve-btn {
+        padding: 8px 20px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .reserve-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+      .reserve-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .events-log {
+        margin-top: 30px;
+        padding: 15px;
+        background: #1f2937;
+        border-radius: 10px;
+        color: #d1d5db;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .event-line {
+        margin: 5px 0;
+        padding: 5px;
+        border-left: 2px solid #667eea;
+        padding-left: 10px;
+      }
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f4f6;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔥 Real-Time Stock Updates Test</h1>
+      <p class="subtitle">
+        Open this page in multiple tabs to see real-time synchronization
+      </p>
+
+      <div class="status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Connecting...</span>
+      </div>
+
+      <div id="drops-container" class="drops-container">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Loading drops...</p>
+        </div>
+      </div>
+
+      <div class="events-log" id="events-log">
+        <div class="event-line">📡 Initializing WebSocket connection...</div>
+      </div>
+    </div>
+
+    <script>
+      const API_URL = "http://localhost:3000";
+      const socket = io(API_URL);
+      const dropsContainer = document.getElementById("drops-container");
+      const eventsLog = document.getElementById("events-log");
+      const statusDot = document.getElementById("status-dot");
+      const statusText = document.getElementById("status-text");
+
+      let drops = [];
+
+      // Log event to console
+      function logEvent(message, color = "#667eea") {
+        const eventLine = document.createElement("div");
+        eventLine.className = "event-line";
+        eventLine.style.borderLeftColor = color;
+        eventLine.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        eventsLog.appendChild(eventLine);
+        eventsLog.scrollTop = eventsLog.scrollHeight;
+        console.log(message);
+      }
+
+      // Socket connection events
+      socket.on("connect", () => {
+        statusDot.classList.add("connected");
+        statusText.textContent = "Connected - Live Updates Active";
+        logEvent("✅ WebSocket connected: " + socket.id, "#10b981");
+      });
+
+      socket.on("disconnect", () => {
+        statusDot.classList.remove("connected");
+        statusText.textContent = "Disconnected - Reconnecting...";
+        logEvent("❌ WebSocket disconnected", "#ef4444");
+      });
+
+      // Stock update event
+      socket.on("stock-updated", (update) => {
+        logEvent(
+          `📊 Stock updated: Drop ${update.dropId.substring(0, 8)}... - ${update.availableStock} available`,
+          "#f59e0b",
+        );
+
+        // Update local state
+        const drop = drops.find((d) => d.id === update.dropId);
+        if (drop) {
+          drop.availableStock = update.availableStock;
+          drop.soldStock = update.soldStock;
+          renderDrops();
+        }
+      });
+
+      socket.on("drop-created", (data) => {
+        logEvent(`🆕 New drop created: ${data.drop.name}`, "#10b981");
+        drops.push(data.drop);
+        renderDrops();
+      });
+
+      socket.on("drop-updated", (data) => {
+        logEvent(`🔄 Drop updated: ${data.drop.name}`, "#3b82f6");
+        const index = drops.findIndex((d) => d.id === data.drop.id);
+        if (index !== -1) {
+          drops[index] = { ...drops[index], ...data.drop };
+          renderDrops();
+        }
+      });
+
+      socket.on("drop-deleted", (data) => {
+        logEvent(`🗑️ Drop deleted: ${data.dropId}`, "#ef4444");
+        drops = drops.filter((d) => d.id !== data.dropId);
+        renderDrops();
+      });
+
+      // Fetch live drops
+      async function fetchDrops() {
+        try {
+          const response = await fetch(`${API_URL}/api/drops/live`);
+          const data = await response.json();
+
+          if (data.success) {
+            drops = data.data;
+            renderDrops();
+            logEvent(`📦 Loaded ${drops.length} live drops`, "#10b981");
+          }
+        } catch (error) {
+          logEvent("❌ Error fetching drops: " + error.message, "#ef4444");
+        }
+      }
+
+      // Reserve a drop
+      async function reserveDrop(dropId) {
+        try {
+          logEvent(`⏳ Reserving drop ${dropId.substring(0, 8)}...`, "#f59e0b");
+
+          const response = await fetch(`${API_URL}/api/drops/${dropId}/stock`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ quantity: 1 }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            logEvent(
+              `✅ Reserved successfully! ${data.data.availableStock} left`,
+              "#10b981",
+            );
+          } else {
+            logEvent(`❌ Reservation failed: ${data.message}`, "#ef4444");
+          }
+        } catch (error) {
+          logEvent("❌ Error: " + error.message, "#ef4444");
+        }
+      }
+
+      // Render drops
+      function renderDrops() {
+        if (drops.length === 0) {
+          dropsContainer.innerHTML =
+            '<div class="loading"><p>No live drops available</p></div>';
+          return;
+        }
+
+        dropsContainer.innerHTML = drops
+          .map((drop) => {
+            const stock = drop.availableStock;
+            let stockClass = "high";
+            let stockText = `${stock} available`;
+
+            if (stock === 0) {
+              stockClass = "out";
+              stockText = "Out of Stock";
+            } else if (stock < 10) {
+              stockClass = "low";
+              stockText = `Only ${stock} left!`;
+            } else if (stock < 20) {
+              stockClass = "medium";
+              stockText = `${stock} available`;
+            }
+
+            return `
+                    <div class="drop-card">
+                        <img src="${drop.imageUrl}" alt="${drop.name}" class="drop-image" />
+                        <div class="drop-info">
+                            <div class="drop-name">${drop.name}</div>
+                            <div class="drop-price">$${Number(drop.price).toFixed(2)}</div>
+                            <span class="stock-badge ${stockClass}">${stockText}</span>
+                        </div>
+                        <button 
+                            class="reserve-btn" 
+                            onclick="reserveDrop('${drop.id}')"
+                            ${stock === 0 ? "disabled" : ""}
+                        >
+                            ${stock === 0 ? "Sold Out" : "Reserve"}
+                        </button>
+                    </div>
+                `;
+          })
+          .join("");
+      }
+
+      // Initialize
+      fetchDrops();
+    </script>
+  </body>
+</html>

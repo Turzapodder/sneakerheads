@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { UserProfile } from "@/components/dashboard/views/UserProfile";
 import { StoreManagement } from "@/components/dashboard/views/StoreManagement";
+import { LiveDrops } from "@/components/dashboard/views/LiveDrops";
 
 export default function Dashboard() {
     const { user: clerkUser } = useUser();
@@ -13,7 +14,7 @@ export default function Dashboard() {
     // Default mock user if not fetched yet
     const [dbUser, setDbUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeView, setActiveView] = useState("store");
+    const [activeView, setActiveView] = useState("live-drops");
     const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default on mobile
 
     const fetchUserFromBackend = async () => {
@@ -42,16 +43,13 @@ export default function Dashboard() {
 
     const getTitle = (view: string) => {
         switch (view) {
-            case "overview": return "Overview";
-            case "profile": return "User Profile";
-            case "users": return "User Management";
-            case "upload": return "Content Upload";
-            case "events": return "Events";
-            case "store": return "Store Management of Products";
-            case "sales": return "Sales & Payments";
+            case "live-drops": return "Live Sneaker Drops";
+            case "my-reservations": return "My Reservations";
+            case "upcoming": return "Upcoming Releases";
+            case "collection": return "Sneaker Collection";
+            case "history": return "Order History";
             case "settings": return "Settings";
-            case "help": return "Help & Support";
-            default: return "Dashboard";
+            default: return "Live Sneaker Drops";
         }
     };
 
@@ -66,23 +64,20 @@ export default function Dashboard() {
 
     const renderView = () => {
         switch (activeView) {
-            case "profile":
-                return (
-                    <UserProfile
-                        clerkUser={clerkUser}
-                        dbUser={dbUser}
-                        onProfileUpdate={handleProfileUpdate}
-                    />
-                );
-            case "store":
-                return <StoreManagement />;
-            default:
+            case "live-drops":
+                return <LiveDrops />;
+            case "my-reservations":
+            case "upcoming":
+            case "collection":
+            case "history":
                 return (
                     <div className="flex h-[50vh] flex-col items-center justify-center text-muted-foreground bg-white rounded-lg border border-dashed">
                         <h3 className="text-lg font-medium">Coming Soon</h3>
                         <p className="text-sm">The {getTitle(activeView)} page is under construction.</p>
                     </div>
                 );
+            default:
+                return <LiveDrops />;
         }
     };
 

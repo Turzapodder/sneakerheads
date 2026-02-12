@@ -1,13 +1,18 @@
-import { LayoutDashboard, User, Users, Upload, Store, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Clock,
+  Package,
+  History,
+  Settings,
+} from "lucide-react";
 
-    export const menuItems = [
-        { id: "overview", label: "Dashboard", icon: LayoutDashboard },
-        { id: "profile", label: "User Profile", icon: User },
-        { id: "users", label: "User Management", icon: Users },
-        { id: "upload", label: "Content Upload", icon: Upload },
-        { id: "store", label: "Store Management", icon: Store },
-    ];
+export const menuItems = [
+  { id: "live-drops", label: "Live Drops", icon: LayoutDashboard },
+  { id: "upcoming", label: "Upcoming Releases", icon: Clock },
+  { id: "collection", label: "Sneaker Collection", icon: Package },
+  { id: "history", label: "Order History", icon: History },
+];
 
-    export const bottomItems = [
-        { id: "settings", label: "Settings", icon: Settings },
-    ];
+export const bottomItems = [
+  { id: "settings", label: "Settings", icon: Settings },
+];

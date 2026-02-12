@@ -23,7 +23,7 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const { signIn, isLoaded } = useSignIn();
+  const { signIn, setActive, isLoaded } = useSignIn();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -45,7 +45,9 @@ export function LoginForm({
       });
 
       if (result.status === "complete") {
-        // Successfully signed in, redirect to dashboard
+        // Set the active session
+        await setActive({ session: result.createdSessionId });
+        // Navigate to dashboard after setting active session
         navigate("/dashboard");
       } else {
         // Handle other statuses if needed

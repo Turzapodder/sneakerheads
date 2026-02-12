@@ -18,7 +18,7 @@ export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const { signUp, isLoaded } = useSignUp();
+  const { signUp, setActive, isLoaded } = useSignUp();
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState("");
@@ -65,6 +65,8 @@ export function SignupForm({
         });
         navigate("/verify-email");
       } else if (result.status === "complete") {
+        // Set the active session before redirecting
+        await setActive({ session: result.createdSessionId });
         // If no verification needed, redirect to dashboard
         navigate("/dashboard");
       }

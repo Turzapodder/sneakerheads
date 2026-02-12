@@ -1,8 +1,13 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import database from './src/config/database.js';
+import { initializeSocket } from './src/config/socket.js';
+import { startCleanupScheduler, stopCleanupScheduler } from './src/services/reservationCleanup.js';
 import authRoutes from './src/routes/authRoutes.js';
+import dropRoutes from './src/routes/dropRoutes.js';
+import reservationRoutes from './src/routes/reservationRoutes.js';
 
 const { sequelize, testConnection } = database;
 
@@ -10,7 +15,11 @@ const { sequelize, testConnection } = database;
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 3000;
+
+// Initialize Socket.IO
+const io = initializeSocket(httpServer);
 
 // CORS Configuration
 const allowedOrigins = [
@@ -47,6 +56,9 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from public directory
+app.use(express.static('public'));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -58,6 +70,8 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/drops', dropRoutes);
+app.use('/api', reservationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -92,21 +106,44 @@ const startServer = async () => {
     // Test database connection
     await testConnection();
 
+    // Setup model associations
+    setupAssociations();
+
     // Sync database models
     await sequelize.sync({ alter: true });
     console.log('✅ Database models synchronized');
 
+    // Start reservation cleanup scheduler
+    startCleanupScheduler();
+
     // Start server
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`📍 Health check: http://localhost:${PORT}/health`);
       console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
+      console.log(`📦 Drops API: http://localhost:${PORT}/api/drops`);
+      console.log(`🔖 Reservations API: http://localhost:${PORT}/api/reservations`);
+      console.log(`🔌 WebSocket server initialized`);
+      console.log(`⏰ Reservation cleanup scheduler started`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
+
+// Graceful shutdown
+const gracefulShutdown = () => {
+  console.log('\n🛑 Shutting down gracefully...');
+  stopCleanupScheduler();
+  httpServer.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 startServer();
 
