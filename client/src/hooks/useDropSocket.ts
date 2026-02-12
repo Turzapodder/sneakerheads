@@ -26,6 +26,16 @@ export interface Drop {
   releaseYear?: number;
   createdAt: string;
   updatedAt: string;
+  purchases?: Array<{
+    id: string;
+    purchasedAt: string;
+    user: {
+      clerkId: string;
+      firstName?: string;
+      lastName?: string;
+      profileImageUrl?: string;
+    };
+  }>;
 }
 
 export interface StockUpdate {
@@ -55,17 +65,17 @@ export const useDropSocket = () => {
       });
 
       socket.on("connect", () => {
-        console.log("✅ WebSocket connected:", socket?.id);
+        console.log("WebSocket connected:", socket?.id);
         setIsConnected(true);
       });
 
       socket.on("disconnect", () => {
-        console.log("❌ WebSocket disconnected");
+        console.log("WebSocket disconnected");
         setIsConnected(false);
       });
 
       socket.on("connect_error", (error) => {
-        console.error("❌ WebSocket connection error:", error);
+        console.error("WebSocket connection error:", error);
         setIsConnected(false);
       });
     }
@@ -78,7 +88,7 @@ export const useDropSocket = () => {
 
   // Handle stock updates
   const handleStockUpdate = useCallback((update: StockUpdate) => {
-    console.log("📊 Stock update received:", update);
+    console.log("Stock update received:", update);
 
     setDrops((prevDrops) =>
       prevDrops.map((drop) =>
@@ -99,7 +109,7 @@ export const useDropSocket = () => {
   // Handle new drop creation
   const handleDropCreated = useCallback(
     (data: { drop: Drop; timestamp: string }) => {
-      console.log("🆕 New drop created:", data.drop);
+      console.log("New drop created:", data.drop);
 
       setDrops((prevDrops) => {
         // Check if drop already exists
@@ -115,7 +125,7 @@ export const useDropSocket = () => {
   // Handle drop updates
   const handleDropUpdated = useCallback(
     (data: { drop: Drop; timestamp: string }) => {
-      console.log("🔄 Drop updated:", data.drop);
+      console.log("Drop updated:", data.drop);
 
       setDrops((prevDrops) =>
         prevDrops.map((drop) =>
@@ -129,7 +139,7 @@ export const useDropSocket = () => {
   // Handle drop deletion
   const handleDropDeleted = useCallback(
     (data: { dropId: string; timestamp: string }) => {
-      console.log("🗑️ Drop deleted:", data.dropId);
+      console.log("Drop deleted:", data.dropId);
 
       setDrops((prevDrops) =>
         prevDrops.filter((drop) => drop.id !== data.dropId),
@@ -140,25 +150,25 @@ export const useDropSocket = () => {
 
   // Handle reservation created
   const handleReservationCreated = useCallback((data: any) => {
-    console.log("🔖 Reservation created:", data);
+    console.log("Reservation created:", data);
     // Stock will be updated via stock-updated event
   }, []);
 
   // Handle reservation expired
   const handleReservationExpired = useCallback((data: any) => {
-    console.log("⏰ Reservation expired:", data);
+    console.log("Reservation expired:", data);
     // Stock will be updated via stock-recovered event
   }, []);
 
   // Handle reservation completed
   const handleReservationCompleted = useCallback((data: any) => {
-    console.log("✅ Reservation completed:", data);
+    console.log("Reservation completed:", data);
     // Stock will be updated via stock-updated event
   }, []);
 
   // Handle stock recovered (from expired/cancelled reservations)
   const handleStockRecovered = useCallback((update: StockUpdate) => {
-    console.log("♻️ Stock recovered:", update);
+    console.log("Stock recovered:", update);
     // Update drops with recovered stock
     setDrops((prevDrops) =>
       prevDrops.map((drop) =>
@@ -222,14 +232,14 @@ export const useDropSocket = () => {
         setDrops(data.data);
       }
     } catch (error) {
-      console.error("❌ Error fetching drops:", error);
+      console.error("Error fetching drops:", error);
     }
   }, []);
 
   // Manually refetch drops (useful for syncing with manual DB changes)
   const refetchDrops = useCallback(
     async (status?: string) => {
-      console.log("🔄 Manually refreshing drops...");
+      console.log("Manually refreshing drops...");
       await fetchDrops(status);
     },
     [fetchDrops],

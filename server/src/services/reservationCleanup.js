@@ -33,7 +33,7 @@ const cleanupExpiredReservations = async () => {
       return;
     }
 
-    console.log(`🧹 Cleaning up ${expiredReservations.length} expired reservation(s)...`);
+    console.log(`Cleaning up ${expiredReservations.length} expired reservation(s)...`);
 
     // Process each expired reservation
     for (const reservation of expiredReservations) {
@@ -57,7 +57,7 @@ const cleanupExpiredReservations = async () => {
           // Reload to get updated values
           await drop.reload({ transaction });
 
-          console.log(`✅ Expired reservation ${reservation.id} for drop ${drop.name}`);
+          console.log(`Expired reservation ${reservation.id} for drop ${drop.name}`);
 
           // Emit WebSocket events (after commit)
           // We'll collect these and emit after commit
@@ -76,7 +76,7 @@ const cleanupExpiredReservations = async () => {
             status: 'expired'
           }, { transaction });
           
-          console.warn(`⚠️ Drop ${reservation.dropId} not found for expired reservation ${reservation.id}`);
+          console.warn(`Drop ${reservation.dropId} not found for expired reservation ${reservation.id}`);
         }
       } catch (err) {
         console.error(`Error processing expired reservation ${reservation.id}:`, err);
@@ -85,7 +85,7 @@ const cleanupExpiredReservations = async () => {
     }
 
     await transaction.commit();
-    console.log(`✅ Cleanup completed for ${expiredReservations.length} reservation(s)`);
+    console.log(`Cleanup completed for ${expiredReservations.length} reservation(s)`);
   } catch (error) {
     await transaction.rollback();
     console.error('Error in cleanup process:', error);
@@ -98,11 +98,11 @@ const cleanupExpiredReservations = async () => {
  */
 const startCleanupScheduler = () => {
   if (cleanupInterval) {
-    console.warn('⚠️ Cleanup scheduler already running');
+    console.warn('Cleanup scheduler already running');
     return;
   }
 
-  console.log('🚀 Starting reservation cleanup scheduler (runs every 5 seconds)...');
+  console.log('Starting reservation cleanup scheduler (runs every 5 seconds)...');
   
   // Run immediately on start
   cleanupExpiredReservations();
@@ -121,7 +121,7 @@ const stopCleanupScheduler = () => {
   if (cleanupInterval) {
     clearInterval(cleanupInterval);
     cleanupInterval = null;
-    console.log('🛑 Reservation cleanup scheduler stopped');
+    console.log('Reservation cleanup scheduler stopped');
   }
 };
 

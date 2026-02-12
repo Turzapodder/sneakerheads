@@ -112,33 +112,33 @@ const startServer = async () => {
 
     // Sync database models
     await sequelize.sync({ alter: true });
-    console.log('✅ Database models synchronized');
+    console.log('Database models synchronized');
 
     // Start reservation cleanup scheduler
     startCleanupScheduler();
 
     // Start server
     httpServer.listen(PORT, () => {
-      console.log(`🚀 Server is running on port ${PORT}`);
-      console.log(`📍 Health check: http://localhost:${PORT}/health`);
-      console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
-      console.log(`📦 Drops API: http://localhost:${PORT}/api/drops`);
-      console.log(`🔖 Reservations API: http://localhost:${PORT}/api/reservations`);
-      console.log(`🔌 WebSocket server initialized`);
-      console.log(`⏰ Reservation cleanup scheduler started`);
+      console.log(` Server is running on port ${PORT}`);
+      console.log(` Health check: http://localhost:${PORT}/health`);
+      console.log(` Auth API: http://localhost:${PORT}/api/auth`);
+      console.log(` Drops API: http://localhost:${PORT}/api/drops`);
+      console.log(` Reservations API: http://localhost:${PORT}/api/reservations`);
+      console.log(` WebSocket server initialized`);
+      console.log(` Reservation cleanup scheduler started`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 };
 
 // Graceful shutdown
 const gracefulShutdown = () => {
-  console.log('\n🛑 Shutting down gracefully...');
+  console.log('\nShutting down gracefully...');
   stopCleanupScheduler();
   httpServer.close(() => {
-    console.log('✅ Server closed');
+    console.log('Server closed');
     process.exit(0);
   });
 };

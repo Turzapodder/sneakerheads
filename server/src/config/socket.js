@@ -21,22 +21,22 @@ export const initializeSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`✅ Client connected: ${socket.id}`);
+    console.log(`Client connected: ${socket.id}`);
 
     // Join a specific drop room for targeted updates
     socket.on('join-drop', (dropId) => {
       socket.join(`drop-${dropId}`);
-      console.log(`📦 Client ${socket.id} joined drop room: ${dropId}`);
+      console.log(`Client ${socket.id} joined drop room: ${dropId}`);
     });
 
     // Leave a drop room
     socket.on('leave-drop', (dropId) => {
       socket.leave(`drop-${dropId}`);
-      console.log(`👋 Client ${socket.id} left drop room: ${dropId}`);
+      console.log(`Client ${socket.id} left drop room: ${dropId}`);
     });
 
     socket.on('disconnect', () => {
-      console.log(`❌ Client disconnected: ${socket.id}`);
+      console.log(`Client disconnected: ${socket.id}`);
     });
   });
 
@@ -76,7 +76,7 @@ export const emitStockUpdate = (dropId, stockData) => {
   // Also emit to specific drop room
   io.to(`drop-${dropId}`).emit('drop-stock-updated', updatePayload);
 
-  console.log(`📊 Stock update emitted for drop ${dropId}:`, updatePayload);
+  console.log(`Stock update emitted for drop ${dropId}:`, updatePayload);
 };
 
 /**
@@ -93,7 +93,7 @@ export const emitDropCreated = (drop) => {
     timestamp: new Date().toISOString()
   });
 
-  console.log(`🆕 Drop created event emitted:`, drop.id);
+  console.log(`Drop created event emitted:`, drop.id);
 };
 
 /**
@@ -115,7 +115,7 @@ export const emitDropUpdated = (drop) => {
     timestamp: new Date().toISOString()
   });
 
-  console.log(`🔄 Drop updated event emitted:`, drop.id);
+  console.log(`Drop updated event emitted:`, drop.id);
 };
 
 /**
@@ -132,7 +132,7 @@ export const emitDropDeleted = (dropId) => {
     timestamp: new Date().toISOString()
   });
 
-  console.log(`🗑️ Drop deleted event emitted:`, dropId);
+  console.log(`Drop deleted event emitted:`, dropId);
 };
 
 /**
@@ -159,7 +159,7 @@ export const emitReservationCreated = (reservation, dropId) => {
   io.emit('reservation-created', payload);
   io.to(`drop-${dropId}`).emit('drop-reservation-created', payload);
 
-  console.log(`🔖 Reservation created event emitted:`, reservation.id);
+  console.log(`Reservation created event emitted:`, reservation.id);
 };
 
 /**
@@ -184,7 +184,7 @@ export const emitReservationExpired = (reservation, dropId) => {
   io.emit('reservation-expired', payload);
   io.to(`drop-${dropId}`).emit('drop-reservation-expired', payload);
 
-  console.log(`⏰ Reservation expired event emitted:`, reservation.id);
+  console.log(`Reservation expired event emitted:`, reservation.id);
 };
 
 /**
@@ -210,7 +210,7 @@ export const emitReservationCompleted = (reservation, dropId) => {
   io.emit('reservation-completed', payload);
   io.to(`drop-${dropId}`).emit('drop-reservation-completed', payload);
 
-  console.log(`✅ Reservation completed event emitted:`, reservation.id);
+  console.log(`Reservation completed event emitted:`, reservation.id);
 };
 
 /**
@@ -234,7 +234,7 @@ export const emitStockRecovered = (dropId, stockData) => {
   io.emit('stock-recovered', updatePayload);
   io.to(`drop-${dropId}`).emit('drop-stock-recovered', updatePayload);
 
-  console.log(`♻️ Stock recovered event emitted for drop ${dropId}:`, updatePayload);
+  console.log(`Stock recovered event emitted for drop ${dropId}:`, updatePayload);
 };
 
 export default {

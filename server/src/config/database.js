@@ -14,7 +14,7 @@ const sequelize = new Sequelize(DATABASE_URL, {
       rejectUnauthorized: false
     }
   },
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  logging: false, 
   pool: {
     max: 5,
     min: 0,
@@ -27,9 +27,9 @@ const sequelize = new Sequelize(DATABASE_URL, {
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
+    console.log('Database connection established successfully.');
   } catch (error) {
-    console.error('❌ Unable to connect to the database:', error);
+    console.error('Unable to connect to the database:', error);
   }
 };
 

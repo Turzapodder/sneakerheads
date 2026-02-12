@@ -19,11 +19,23 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, ShoppingBag, Package, RefreshCw, AlertCircle } from "lucide-react";
+import { Clock, ShoppingBag, Package, RefreshCw, AlertCircle, User } from "lucide-react";
 import { useDropSocket, type Drop } from "@/hooks/useDropSocket";
 import type { Reservation } from "@/types/reservation";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+// Helper function to get username from user data
+const getUsername = (user: { firstName?: string; lastName?: string; clerkId: string }) => {
+    if (user.firstName && user.lastName) {
+        return `${user.firstName} ${user.lastName}`;
+    } else if (user.firstName) {
+        return user.firstName;
+    } else if (user.lastName) {
+        return user.lastName;
+    }
+    return user.clerkId.substring(0, 8);
+};
 
 export function LiveDrops() {
     const { getToken } = useAuth();
@@ -72,14 +84,13 @@ export function LiveDrops() {
     // Load reservations on mount and after operations
     useEffect(() => {
         fetchMyReservations();
-        const interval = setInterval(fetchMyReservations, 5000); // Refresh every 5 seconds
-        return () => clearInterval(interval);
+        // No polling needed - WebSocket handles real-time updates
     }, [getToken]);
 
     // Auto-refresh drops every 30 seconds to sync with database changes
     useEffect(() => {
         const interval = setInterval(async () => {
-            console.log('🔄 Auto-refreshing drops...');
+            console.log('Auto-refreshing drops...');
             await refetchDrops('live');
             setLastRefresh(new Date());
         }, 30000); // 30 seconds
@@ -220,6 +231,7 @@ export function LiveDrops() {
                     setCurrentReservation(null);
                     setIsPurchasing(false);
                     fetchMyReservations();
+                    refetchDrops('live'); // Refresh to get updated recent buyers
                     alert(`Successfully purchased ${selectedSneaker?.name}!`);
                 }, 500);
             } else {
@@ -456,13 +468,14 @@ export function LiveDrops() {
                                 <TableHead className="w-[400px] font-semibold">Sneaker</TableHead>
                                 <TableHead className="font-semibold">Price</TableHead>
                                 <TableHead className="font-semibold">Live Stock Count</TableHead>
+                                <TableHead className="font-semibold">Total Stock</TableHead>
+                                <TableHead className="font-semibold">Recent Buyers</TableHead>
                                 <TableHead className="text-right font-semibold">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {drops.map((sneaker) => {
                                 const hasReservation = myReservations.some(r => r.dropId === sneaker.id);
-
                                 return (
                                     <TableRow
                                         key={sneaker.id}
@@ -528,6 +541,39 @@ export function LiveDrops() {
                                                 </Badge>
                                             )}
                                         </TableCell>
+                                        <TableCell>
+                                            <span className="font-bold text-lg text-slate-900">
+                                                {sneaker.totalStock}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-1">
+                                                {sneaker.purchases && sneaker.purchases.length > 0 ? (
+                                                    sneaker.purchases.slice(0, 3).map((purchase) => (
+                                                        <div key={purchase.id} className="flex items-center gap-2">
+                                                            {purchase.user.profileImageUrl ? (
+                                                                <img
+                                                                    src={purchase.user.profileImageUrl}
+                                                                    alt={getUsername(purchase.user)}
+                                                                    className="h-6 w-6 rounded-full border border-slate-300"
+                                                                />
+                                                            ) : (
+                                                                <div className="h-6 w-6 rounded-full bg-purple-100 flex items-center justify-center border border-purple-300">
+                                                                    <User className="h-3 w-3 text-purple-600" />
+                                                                </div>
+                                                            )}
+                                                            <span className="text-xs font-medium text-slate-700">
+                                                                {getUsername(purchase.user)}
+                                                            </span>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic">
+                                                        No purchases yet
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <Button
                                                 onClick={() => handleReserve(sneaker)}
@@ -576,22 +622,15 @@ export function LiveDrops() {
                                 <div className="relative">
                                     <div
                                         className={`h-20 w-20 rounded-full flex items-center justify-center text-2xl font-bold ${countdown <= 10
-                                                ? "bg-red-100 text-red-600 animate-pulse"
-                                                : countdown <= 30
-                                                    ? "bg-orange-100 text-orange-600"
-                                                    : "bg-green-100 text-green-600"
+                                            ? "bg-red-100 text-red-600 animate-pulse"
+                                            : countdown <= 30
+                                                ? "bg-orange-100 text-orange-600"
+                                                : "bg-green-100 text-green-600"
                                             }`}
                                     >
                                         {countdown}
                                     </div>
-                                    <Clock
-                                        className={`absolute -top-1 -right-1 h-6 w-6 ${countdown <= 10
-                                                ? "text-red-600"
-                                                : countdown <= 30
-                                                    ? "text-orange-600"
-                                                    : "text-green-600"
-                                            }`}
-                                    />
+
                                 </div>
                             </div>
 
@@ -639,7 +678,7 @@ export function LiveDrops() {
                             {countdown <= 10 && countdown > 0 && (
                                 <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 text-center animate-pulse">
                                     <p className="text-red-700 font-semibold text-sm">
-                                        ⚠️ Time is running out! Complete your purchase now or lose your reservation
+                                        Time is running out! Complete your purchase now or lose your reservation
                                     </p>
                                 </div>
                             )}
@@ -648,7 +687,7 @@ export function LiveDrops() {
                             {countdown === 0 && (
                                 <div className="bg-gray-100 border-2 border-gray-300 rounded-lg p-3 text-center">
                                     <p className="text-gray-700 font-semibold text-sm">
-                                        ⏰ Reservation has expired. The item has been returned to available stock.
+                                        Reservation has expired. The item has been returned to available stock.
                                     </p>
                                 </div>
                             )}
@@ -668,7 +707,7 @@ export function LiveDrops() {
                             <Button
                                 onClick={handleCompletePurchase}
                                 disabled={countdown === 0 || isPurchasing}
-                                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold shadow-lg disabled:opacity-50"
+                                className="bg-green-500 hover:bg-green-600 text-white font-semibold shadow-lg disabled:opacity-50"
                             >
                                 {isPurchasing ? (
                                     <>

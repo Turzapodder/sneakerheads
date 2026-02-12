@@ -1,4 +1,6 @@
 import Drop from '../models/Drop.js';
+import Purchase from '../models/Purchase.js';
+import User from '../models/User.js';
 import { Op } from 'sequelize';
 import { emitStockUpdate, emitDropCreated, emitDropUpdated, emitDropDeleted } from '../config/socket.js';
 
@@ -160,7 +162,7 @@ const getAllDrops = async (req, res) => {
       where.isActive = isActive === 'true';
     }
 
-    // Fetch drops with pagination
+    // Fetch drops without purchases first
     const { count, rows: drops } = await Drop.findAndCountAll({
       where,
       limit: parseInt(limit),
@@ -168,9 +170,31 @@ const getAllDrops = async (req, res) => {
       order: [[sortBy, sortOrder.toUpperCase()]]
     });
 
+    // Manually fetch top 3 recent purchases for each drop
+    const dropsWithPurchases = await Promise.all(
+      drops.map(async (drop) => {
+        const purchases = await Purchase.findAll({
+          where: { dropId: drop.id },
+          limit: 3,
+          order: [['purchasedAt', 'DESC']],
+          include: [{
+            model: User,
+            as: 'user',
+            attributes: ['clerkId', 'firstName', 'lastName', 'profileImageUrl']
+          }],
+          attributes: ['id', 'userId', 'purchasedAt']
+        });
+
+        return {
+          ...drop.toJSON(),
+          purchases
+        };
+      })
+    );
+
     res.json({
       success: true,
-      data: drops,
+      data: dropsWithPurchases,
       pagination: {
         total: count,
         limit: parseInt(limit),

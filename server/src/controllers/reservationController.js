@@ -1,5 +1,6 @@
 import Reservation from '../models/Reservation.js';
 import Drop from '../models/Drop.js';
+import Purchase from '../models/Purchase.js';
 import database from '../config/database.js';
 import { emitStockUpdate, emitReservationCreated, emitReservationExpired, emitReservationCompleted, emitStockRecovered } from '../config/socket.js';
 
@@ -217,6 +218,16 @@ const completePurchase = async (req, res) => {
     // Update drop stocks: move from reserved to sold
     await drop.increment('soldStock', { by: reservation.quantity, transaction });
     await drop.decrement('reservedStock', { by: reservation.quantity, transaction });
+
+    // Create purchase record for activity feed
+    await Purchase.create({
+      dropId: drop.id,
+      userId,
+      reservationId: reservation.id,
+      quantity: reservation.quantity,
+      priceAtPurchase: drop.price,
+      purchasedAt: new Date()
+    }, { transaction });
 
     // Reload to get updated values
     await drop.reload({ transaction });
