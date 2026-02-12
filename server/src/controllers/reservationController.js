@@ -1,8 +1,16 @@
 import Reservation from '../models/Reservation.js';
 import Drop from '../models/Drop.js';
 import Purchase from '../models/Purchase.js';
+import User from '../models/User.js';
 import database from '../config/database.js';
-import { emitStockUpdate, emitReservationCreated, emitReservationExpired, emitReservationCompleted, emitStockRecovered } from '../config/socket.js';
+import { 
+  emitStockUpdate, 
+  emitReservationCreated, 
+  emitReservationExpired, 
+  emitReservationCompleted, 
+  emitStockRecovered,
+  emitPurchaseCreated 
+} from '../config/socket.js';
 
 const { sequelize } = database;
 
@@ -220,7 +228,7 @@ const completePurchase = async (req, res) => {
     await drop.decrement('reservedStock', { by: reservation.quantity, transaction });
 
     // Create purchase record for activity feed
-    await Purchase.create({
+    const purchase = await Purchase.create({
       dropId: drop.id,
       userId,
       reservationId: reservation.id,
@@ -228,6 +236,12 @@ const completePurchase = async (req, res) => {
       priceAtPurchase: drop.price,
       purchasedAt: new Date()
     }, { transaction });
+    
+    // Fetch user details for the event
+    const user = await User.findOne({ 
+      where: { clerkId: userId },
+      transaction 
+    });
 
     // Reload to get updated values
     await drop.reload({ transaction });
@@ -237,6 +251,9 @@ const completePurchase = async (req, res) => {
 
     // Emit WebSocket events
     emitReservationCompleted(reservation, drop.id);
+    if (user) {
+      emitPurchaseCreated(purchase, user);
+    }
     emitStockUpdate(drop.id, {
       totalStock: drop.totalStock,
       availableStock: drop.availableStock,

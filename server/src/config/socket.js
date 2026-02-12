@@ -237,6 +237,37 @@ export const emitStockRecovered = (dropId, stockData) => {
   console.log(`Stock recovered event emitted for drop ${dropId}:`, updatePayload);
 };
 
+/**
+ * Emit purchase created event
+ */
+export const emitPurchaseCreated = (purchase, user) => {
+  if (!io) {
+    console.warn('Socket.IO not initialized, skipping purchase creation emission');
+    return;
+  }
+
+  const payload = {
+    purchase: {
+      id: purchase.id,
+      dropId: purchase.dropId,
+      userId: purchase.userId,
+      purchasedAt: purchase.purchasedAt,
+      user: {
+        clerkId: user.clerkId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl
+      }
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  io.emit('purchase-created', payload);
+  io.to(`drop-${purchase.dropId}`).emit('drop-purchase-created', payload);
+
+  console.log(`Purchase created event emitted:`, purchase.id);
+};
+
 export default {
   initializeSocket,
   getIO,
@@ -247,5 +278,6 @@ export default {
   emitReservationCreated,
   emitReservationExpired,
   emitReservationCompleted,
-  emitStockRecovered
+  emitStockRecovered,
+  emitPurchaseCreated
 };

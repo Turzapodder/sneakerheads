@@ -1,11 +1,10 @@
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useState, useEffect } from "react";
 import { authApi } from "@/lib/api";
-import { Sidebar } from "@/components/dashboard/Sidebar";
-import { Header } from "@/components/dashboard/Header";
-import { UserProfile } from "@/components/dashboard/views/UserProfile";
-import { StoreManagement } from "@/components/dashboard/views/StoreManagement";
-import { LiveDrops } from "@/components/dashboard/views/LiveDrops";
+import { Sidebar } from "@/features/dashboard/components/Sidebar";
+import { Header } from "@/features/dashboard/components/Header";
+import { UserProfile } from "@/features/dashboard/components/UserProfile";
+import { LiveDrops } from "@/features/drops/components/LiveDrops";
 
 export default function Dashboard() {
     const { user: clerkUser } = useUser();
@@ -49,6 +48,7 @@ export default function Dashboard() {
             case "collection": return "Sneaker Collection";
             case "history": return "Order History";
             case "settings": return "Settings";
+            case "profile-update": return "My Profile";
             default: return "Live Sneaker Drops";
         }
     };
@@ -75,6 +75,14 @@ export default function Dashboard() {
                         <h3 className="text-lg font-medium">Coming Soon</h3>
                         <p className="text-sm">The {getTitle(activeView)} page is under construction.</p>
                     </div>
+                );
+            case "profile-update":
+                return (
+                    <UserProfile
+                        clerkUser={clerkUser}
+                        dbUser={dbUser}
+                        onProfileUpdate={handleProfileUpdate}
+                    />
                 );
             default:
                 return <LiveDrops />;

@@ -59,8 +59,6 @@ const cleanupExpiredReservations = async () => {
 
           console.log(`Expired reservation ${reservation.id} for drop ${drop.name}`);
 
-          // Emit WebSocket events (after commit)
-          // We'll collect these and emit after commit
           setImmediate(() => {
             emitReservationExpired(reservation, drop.id);
             emitStockRecovered(drop.id, {

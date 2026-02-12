@@ -12,7 +12,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import sideImage from '../../assets/signup.webp';
+import sideImage from '../../../assets/signup.webp';
 
 export function SignupForm({
   className,

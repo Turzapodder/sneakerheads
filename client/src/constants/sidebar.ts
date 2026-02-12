@@ -4,6 +4,7 @@ import {
   Package,
   History,
   Settings,
+  User,
 } from "lucide-react";
 
 export const menuItems = [
@@ -15,4 +16,5 @@ export const menuItems = [
 
 export const bottomItems = [
   { id: "settings", label: "Settings", icon: Settings },
+  { id: "profile-update", label: "Profile", icon: User },
 ];

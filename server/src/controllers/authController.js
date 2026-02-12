@@ -49,16 +49,19 @@ const updateProfile = async (req, res) => {
       });
     }
 
-    const { firstName, lastName } = req.body;
+    const { firstName, lastName, profileImageUrl } = req.body;
 
     // Update in database
     await req.user.update({
       firstName: firstName || req.user.firstName,
-      lastName: lastName || req.user.lastName
+      lastName: lastName || req.user.lastName,
+      profileImageUrl: profileImageUrl || req.user.profileImageUrl
     });
 
     // Optionally update in Clerk as well
     try {
+      // Note: Clerk SDK might not support updating profile image directly via this method without a file token
+      // We'll focus on database update which is our source of truth
       await clerkClient.users.updateUser(req.user.clerkId, {
         firstName: firstName || undefined,
         lastName: lastName || undefined
@@ -74,7 +77,8 @@ const updateProfile = async (req, res) => {
       data: {
         id: req.user.id,
         firstName: req.user.firstName,
-        lastName: req.user.lastName
+        lastName: req.user.lastName,
+        profileImageUrl: req.user.profileImageUrl
       }
     });
   } catch (error) {

@@ -367,10 +367,32 @@ const getLiveDrops = async (req, res) => {
       order: [['dropStartTime', 'DESC']]
     });
 
+    // Manually fetch top 3 recent purchases for each drop
+    const dropsWithPurchases = await Promise.all(
+      drops.map(async (drop) => {
+        const purchases = await Purchase.findAll({
+          where: { dropId: drop.id },
+          limit: 3,
+          order: [['purchasedAt', 'DESC']],
+          include: [{
+            model: User,
+            as: 'user',
+            attributes: ['clerkId', 'firstName', 'lastName', 'profileImageUrl']
+          }],
+          attributes: ['id', 'userId', 'purchasedAt']
+        });
+
+        return {
+          ...drop.toJSON(),
+          purchases
+        };
+      })
+    );
+
     res.json({
       success: true,
-      data: drops,
-      count: drops.length
+      data: dropsWithPurchases,
+      count: dropsWithPurchases.length
     });
   } catch (error) {
     console.error('Error getting live drops:', error);

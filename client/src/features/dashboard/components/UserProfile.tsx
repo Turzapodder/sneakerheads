@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProfileUpdateForm } from "@/components/ProfileUpdateForm";
+import { ProfileUpdateForm } from "./ProfileUpdateForm";
 import { useClerk } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 
@@ -35,11 +35,11 @@ export function UserProfile({ clerkUser, dbUser, onProfileUpdate }: UserProfileP
                             <h2 className="text-lg font-semibold mb-4">Account Details</h2>
                             <div className="space-y-4">
                                 <div className="flex items-center gap-4">
-                                    {clerkUser?.imageUrl && (
+                                    {(dbUser?.profileImageUrl || clerkUser?.imageUrl) && (
                                         <img
-                                            src={clerkUser.imageUrl}
+                                            src={dbUser?.profileImageUrl || clerkUser.imageUrl}
                                             alt="Profile"
-                                            className="w-16 h-16 rounded-full border-2 border-background shadow-sm"
+                                            className="w-16 h-16 rounded-full border-2 border-background shadow-sm object-cover"
                                         />
                                     )}
                                     <div>
@@ -106,6 +106,7 @@ export function UserProfile({ clerkUser, dbUser, onProfileUpdate }: UserProfileP
                 <ProfileUpdateForm
                     currentFirstName={dbUser?.firstName || ""}
                     currentLastName={dbUser?.lastName || ""}
+                    currentProfileImageUrl={dbUser?.profileImageUrl || clerkUser?.imageUrl}
                     onUpdate={onProfileUpdate}
                 />
             </div>
