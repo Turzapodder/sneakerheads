@@ -135,11 +135,117 @@ export const emitDropDeleted = (dropId) => {
   console.log(`🗑️ Drop deleted event emitted:`, dropId);
 };
 
+/**
+ * Emit reservation created event
+ */
+export const emitReservationCreated = (reservation, dropId) => {
+  if (!io) {
+    console.warn('Socket.IO not initialized, skipping reservation creation emission');
+    return;
+  }
+
+  const payload = {
+    reservation: {
+      id: reservation.id,
+      dropId: reservation.dropId,
+      userId: reservation.userId,
+      quantity: reservation.quantity,
+      status: reservation.status,
+      expiresAt: reservation.expiresAt
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  io.emit('reservation-created', payload);
+  io.to(`drop-${dropId}`).emit('drop-reservation-created', payload);
+
+  console.log(`🔖 Reservation created event emitted:`, reservation.id);
+};
+
+/**
+ * Emit reservation expired event
+ */
+export const emitReservationExpired = (reservation, dropId) => {
+  if (!io) {
+    console.warn('Socket.IO not initialized, skipping reservation expiry emission');
+    return;
+  }
+
+  const payload = {
+    reservation: {
+      id: reservation.id,
+      dropId: reservation.dropId,
+      userId: reservation.userId,
+      status: reservation.status
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  io.emit('reservation-expired', payload);
+  io.to(`drop-${dropId}`).emit('drop-reservation-expired', payload);
+
+  console.log(`⏰ Reservation expired event emitted:`, reservation.id);
+};
+
+/**
+ * Emit reservation completed event
+ */
+export const emitReservationCompleted = (reservation, dropId) => {
+  if (!io) {
+    console.warn('Socket.IO not initialized, skipping reservation completion emission');
+    return;
+  }
+
+  const payload = {
+    reservation: {
+      id: reservation.id,
+      dropId: reservation.dropId,
+      userId: reservation.userId,
+      status: reservation.status,
+      completedAt: reservation.completedAt
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  io.emit('reservation-completed', payload);
+  io.to(`drop-${dropId}`).emit('drop-reservation-completed', payload);
+
+  console.log(`✅ Reservation completed event emitted:`, reservation.id);
+};
+
+/**
+ * Emit stock recovered event (when reservation expires or is cancelled)
+ */
+export const emitStockRecovered = (dropId, stockData) => {
+  if (!io) {
+    console.warn('Socket.IO not initialized, skipping stock recovery emission');
+    return;
+  }
+
+  const updatePayload = {
+    dropId,
+    totalStock: stockData.totalStock,
+    availableStock: stockData.availableStock,
+    soldStock: stockData.soldStock,
+    reservedStock: stockData.reservedStock,
+    timestamp: new Date().toISOString()
+  };
+
+  io.emit('stock-recovered', updatePayload);
+  io.to(`drop-${dropId}`).emit('drop-stock-recovered', updatePayload);
+
+  console.log(`♻️ Stock recovered event emitted for drop ${dropId}:`, updatePayload);
+};
+
 export default {
   initializeSocket,
   getIO,
   emitStockUpdate,
   emitDropCreated,
   emitDropUpdated,
-  emitDropDeleted
+  emitDropDeleted,
+  emitReservationCreated,
+  emitReservationExpired,
+  emitReservationCompleted,
+  emitStockRecovered
 };

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import {
     Table,
     TableBody,
@@ -18,18 +19,26 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, ShoppingBag, Package } from "lucide-react";
+import { Clock, ShoppingBag, Package, RefreshCw, AlertCircle } from "lucide-react";
 import { useDropSocket, type Drop } from "@/hooks/useDropSocket";
+import type { Reservation } from "@/types/reservation";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export function LiveDrops() {
-    const { isConnected, drops, setDrops, fetchDrops } = useDropSocket();
+    const { getToken } = useAuth();
+    const { isConnected, drops, setDrops, fetchDrops, refetchDrops } = useDropSocket();
     const [selectedSneaker, setSelectedSneaker] = useState<Drop | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [countdown, setCountdown] = useState(10);
-    const [isConfirming, setIsConfirming] = useState(false);
+    const [countdown, setCountdown] = useState(60);
+    const [isReserving, setIsReserving] = useState(false);
+    const [isPurchasing, setIsPurchasing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+    const [myReservations, setMyReservations] = useState<Reservation[]>([]);
+    const [currentReservation, setCurrentReservation] = useState<Reservation | null>(null);
+    const [error, setError] = useState<string>("");
 
     // Fetch live drops on mount
     useEffect(() => {
@@ -37,84 +46,226 @@ export function LiveDrops() {
             setIsLoading(true);
             await fetchDrops('live');
             setIsLoading(false);
+            setLastRefresh(new Date());
         };
         loadDrops();
     }, [fetchDrops]);
 
-    const handleReserve = (sneaker: Drop) => {
-        if (sneaker.availableStock === 0) return;
-        setSelectedSneaker(sneaker);
-        setIsModalOpen(true);
-        setCountdown(10);
-        setIsConfirming(false);
-        startCountdown();
-    };
-
-    const startCountdown = () => {
-        setCountdown(10);
-        const interval = setInterval(() => {
-            setCountdown((prev) => {
-                if (prev <= 1) {
-                    clearInterval(interval);
-                    return 0;
+    // Fetch user's active reservations
+    const fetchMyReservations = async () => {
+        try {
+            const token = await getToken();
+            const response = await fetch(`${API_URL}/api/reservations/my-reservations`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
                 }
-                return prev - 1;
             });
-        }, 1000);
+            const data = await response.json();
+            if (data.success) {
+                setMyReservations(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching reservations:', error);
+        }
     };
 
-    const handleConfirmPurchase = async () => {
-        if (!selectedSneaker) return;
+    // Load reservations on mount and after operations
+    useEffect(() => {
+        fetchMyReservations();
+        const interval = setInterval(fetchMyReservations, 5000); // Refresh every 5 seconds
+        return () => clearInterval(interval);
+    }, [getToken]);
 
-        setIsConfirming(true);
+    // Auto-refresh drops every 30 seconds to sync with database changes
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            console.log('🔄 Auto-refreshing drops...');
+            await refetchDrops('live');
+            setLastRefresh(new Date());
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [refetchDrops]);
+
+    // Countdown timer for current reservation
+    useEffect(() => {
+        if (!currentReservation || currentReservation.status !== 'active') return;
+
+        const interval = setInterval(() => {
+            const now = new Date().getTime();
+            const expiresAt = new Date(currentReservation.expiresAt).getTime();
+            const remaining = Math.floor((expiresAt - now) / 1000);
+
+            if (remaining <= 0) {
+                setCountdown(0);
+                setCurrentReservation(null);
+                fetchMyReservations();
+                clearInterval(interval);
+            } else {
+                setCountdown(remaining);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [currentReservation]);
+
+    // Manual refresh handler
+    const handleManualRefresh = async () => {
+        setIsRefreshing(true);
+        await refetchDrops('live');
+        await fetchMyReservations();
+        setLastRefresh(new Date());
+        setTimeout(() => setIsRefreshing(false), 500);
+    };
+
+    const handleReserve = async (sneaker: Drop) => {
+        if (sneaker.availableStock === 0) return;
+
+        // Check if user already has a reservation for this drop
+        const existingReservation = myReservations.find(r => r.dropId === sneaker.id);
+        if (existingReservation) {
+            setCurrentReservation(existingReservation);
+            setSelectedSneaker(sneaker);
+            setIsModalOpen(true);
+            const now = new Date().getTime();
+            const expiresAt = new Date(existingReservation.expiresAt).getTime();
+            const remaining = Math.floor((expiresAt - now) / 1000);
+            setCountdown(remaining > 0 ? remaining : 0);
+            return;
+        }
+
+        setError("");
+        setIsReserving(true);
 
         try {
-            // Call the stock update API
-            const response = await fetch(`${API_URL}/api/drops/${selectedSneaker.id}/stock`, {
-                method: 'PATCH',
+            const token = await getToken();
+            const response = await fetch(`${API_URL}/api/drops/${sneaker.id}/reserve`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Add auth token if needed
-                    // 'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ quantity: 1 })
+                    'Authorization': `Bearer ${token}`
+                }
             });
 
             const data = await response.json();
 
-            if (data.success) {
-                // Update local state immediately (WebSocket will also update it)
+            if (data.success && data.data) {
+                // Update local state immediately
                 setDrops(prevDrops =>
                     prevDrops.map(drop =>
-                        drop.id === selectedSneaker.id
+                        drop.id === sneaker.id
                             ? {
                                 ...drop,
-                                availableStock: data.data.availableStock,
-                                soldStock: data.data.soldStock
+                                availableStock: data.data.drop.availableStock,
+                                reservedStock: data.data.drop.reservedStock
                             }
                             : drop
                     )
                 );
 
-                setTimeout(() => {
-                    setIsModalOpen(false);
-                    setIsConfirming(false);
-                    alert(`Successfully reserved ${selectedSneaker.name}!`);
-                }, 500);
+                setCurrentReservation(data.data.reservation);
+                setSelectedSneaker(sneaker);
+                setIsModalOpen(true);
+                setCountdown(60);
+                await fetchMyReservations();
             } else {
                 throw new Error(data.message || 'Failed to reserve sneaker');
             }
         } catch (error) {
             console.error('Error reserving sneaker:', error);
+            setError(error instanceof Error ? error.message : 'Failed to create reservation');
             alert(`Failed to reserve: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            setIsConfirming(false);
+        } finally {
+            setIsReserving(false);
+        }
+    };
+
+    const handleCompletePurchase = async () => {
+        if (!currentReservation) return;
+
+        setError("");
+        setIsPurchasing(true);
+
+        try {
+            const token = await getToken();
+            const response = await fetch(`${API_URL}/api/reservations/${currentReservation.id}/purchase`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                // Update local state
+                if (selectedSneaker) {
+                    setDrops(prevDrops =>
+                        prevDrops.map(drop =>
+                            drop.id === selectedSneaker.id
+                                ? {
+                                    ...drop,
+                                    soldStock: data.data.drop.soldStock,
+                                    reservedStock: data.data.drop.reservedStock,
+                                    availableStock: data.data.drop.availableStock
+                                }
+                                : drop
+                        )
+                    );
+                }
+
+                setTimeout(() => {
+                    setIsModalOpen(false);
+                    setCurrentReservation(null);
+                    setIsPurchasing(false);
+                    fetchMyReservations();
+                    alert(`Successfully purchased ${selectedSneaker?.name}!`);
+                }, 500);
+            } else {
+                throw new Error(data.message || 'Failed to complete purchase');
+            }
+        } catch (error) {
+            console.error('Error completing purchase:', error);
+            setError(error instanceof Error ? error.message : 'Failed to complete purchase');
+            setIsPurchasing(false);
+        }
+    };
+
+    const handleCancelReservation = async (reservationId: string) => {
+        try {
+            const token = await getToken();
+            const response = await fetch(`${API_URL}/api/reservations/${reservationId}/cancel`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                await fetchMyReservations();
+                await refetchDrops('live');
+                if (currentReservation?.id === reservationId) {
+                    setCurrentReservation(null);
+                    setIsModalOpen(false);
+                }
+            } else {
+                throw new Error(data.message || 'Failed to cancel reservation');
+            }
+        } catch (error) {
+            console.error('Error cancelling reservation:', error);
+            alert(`Failed to cancel: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedSneaker(null);
-        setCountdown(10);
+        setCurrentReservation(null);
+        setCountdown(60);
+        setError("");
     };
 
     if (isLoading) {
@@ -139,14 +290,103 @@ export function LiveDrops() {
                             Limited edition sneakers available now. Reserve yours before they're gone!
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-300 animate-pulse' : 'bg-red-300'}`} />
-                        <span className="text-sm font-medium">
-                            {isConnected ? 'Live Updates' : 'Disconnected'}
-                        </span>
+                    <div className="flex items-center gap-4">
+                        <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center gap-2">
+                                <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-300 animate-pulse' : 'bg-red-300'}`} />
+                                <span className="text-sm font-medium">
+                                    {isConnected ? 'Live Updates' : 'Disconnected'}
+                                </span>
+                            </div>
+                            <div className="text-[11px] text-purple-100/80">
+                                Last sync: {lastRefresh.toLocaleTimeString()}
+                            </div>
+                        </div>
+                        <Button
+                            onClick={handleManualRefresh}
+                            disabled={isRefreshing}
+                            variant="secondary"
+                            size="sm"
+                            className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        </Button>
                     </div>
                 </div>
             </div>
+
+            {/* My Active Reservations */}
+            {myReservations.length > 0 && (
+                <Card className="border-2 border-purple-200 bg-purple-50">
+                    <CardContent className="p-6">
+                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-purple-600" />
+                            My Active Reservations ({myReservations.length})
+                        </h3>
+                        <div className="space-y-3">
+                            {myReservations.map((reservation) => {
+                                const now = new Date().getTime();
+                                const expiresAt = new Date(reservation.expiresAt).getTime();
+                                const remaining = Math.floor((expiresAt - now) / 1000);
+                                const minutesLeft = Math.floor(remaining / 60);
+                                const secondsLeft = remaining % 60;
+
+                                return (
+                                    <div key={reservation.id} className="bg-white p-4 rounded-lg border-2 border-purple-200 flex items-center justify-between">
+                                        <div className="flex items-center gap-4 flex-1">
+                                            {reservation.drop && (
+                                                <>
+                                                    <img
+                                                        src={reservation.drop.imageUrl}
+                                                        alt={reservation.drop.name}
+                                                        className="h-16 w-16 rounded-lg object-cover border-2 border-purple-300"
+                                                    />
+                                                    <div>
+                                                        <h4 className="font-semibold">{reservation.drop.name}</h4>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            ${Number(reservation.drop.price).toFixed(2)}
+                                                        </p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <Clock className="h-3 w-3 text-orange-600" />
+                                                            <span className={`text-sm font-semibold ${remaining <= 10 ? 'text-red-600 animate-pulse' : 'text-orange-600'}`}>
+                                                                {remaining > 0 ? `${minutesLeft}:${secondsLeft.toString().padStart(2, '0')} left` : 'Expired'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                onClick={() => {
+                                                    const drop = drops.find(d => d.id === reservation.dropId);
+                                                    if (drop) {
+                                                        setSelectedSneaker(drop);
+                                                        setCurrentReservation(reservation);
+                                                        setCountdown(remaining > 0 ? remaining : 0);
+                                                        setIsModalOpen(true);
+                                                    }
+                                                }}
+                                                disabled={remaining <= 0}
+                                                className="bg-green-500 hover:bg-green-600 text-white"
+                                            >
+                                                Complete Purchase
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleCancelReservation(reservation.id)}
+                                                variant="outline"
+                                                className="border-red-300 text-red-600 hover:bg-red-50"
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Stats Cards */}
             <div className="grid gap-4 md:grid-cols-3">
@@ -220,78 +460,98 @@ export function LiveDrops() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {drops.map((sneaker) => (
-                                <TableRow
-                                    key={sneaker.id}
-                                    className="group hover:bg-slate-50/50 transition-colors"
-                                >
-                                    <TableCell className="font-medium">
-                                        <div className="flex items-center gap-4">
-                                            <div className="relative">
-                                                <img
-                                                    src={sneaker.imageUrl}
-                                                    alt={sneaker.name}
-                                                    className="h-16 w-16 rounded-lg object-cover bg-slate-100 border-2 border-slate-200 group-hover:border-slate-300 transition-all group-hover:shadow-md"
-                                                />
-                                                {sneaker.availableStock > 0 && sneaker.availableStock < 15 && (
-                                                    <Badge className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-500 text-[10px] px-1.5 py-0.5">
-                                                        HOT
-                                                    </Badge>
-                                                )}
+                            {drops.map((sneaker) => {
+                                const hasReservation = myReservations.some(r => r.dropId === sneaker.id);
+
+                                return (
+                                    <TableRow
+                                        key={sneaker.id}
+                                        className="group hover:bg-slate-50/50 transition-colors"
+                                    >
+                                        <TableCell className="font-medium">
+                                            <div className="flex items-center gap-4">
+                                                <div className="relative">
+                                                    <img
+                                                        src={sneaker.imageUrl}
+                                                        alt={sneaker.name}
+                                                        className="h-16 w-16 rounded-lg object-cover bg-slate-100 border-2 border-slate-200 group-hover:border-slate-300 transition-all group-hover:shadow-md"
+                                                    />
+                                                    {sneaker.availableStock > 0 && sneaker.availableStock < 15 && (
+                                                        <Badge className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-500 text-[10px] px-1.5 py-0.5">
+                                                            HOT
+                                                        </Badge>
+                                                    )}
+                                                    {hasReservation && (
+                                                        <Badge className="absolute -top-2 -right-2 bg-purple-500 hover:bg-purple-500 text-[10px] px-1.5 py-0.5">
+                                                            RESERVED
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-semibold text-sm leading-tight">
+                                                        {sneaker.name}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground mt-1">
+                                                        {sneaker.brand || 'Limited Edition'}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold text-sm leading-tight">
-                                                    {sneaker.name}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground mt-1">
-                                                    {sneaker.brand || 'Limited Edition'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="font-bold text-lg text-slate-900">
-                                            ${Number(sneaker.price).toFixed(2)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        {sneaker.availableStock === 0 ? (
-                                            <Badge
-                                                variant="secondary"
-                                                className="bg-red-100 text-red-700 hover:bg-red-100 font-semibold"
-                                            >
-                                                Out of Stock
-                                            </Badge>
-                                        ) : sneaker.availableStock < 15 ? (
-                                            <div className="flex items-center gap-2">
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="font-bold text-lg text-slate-900">
+                                                ${Number(sneaker.price).toFixed(2)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            {sneaker.availableStock === 0 ? (
                                                 <Badge
                                                     variant="secondary"
-                                                    className="bg-orange-100 text-orange-700 hover:bg-orange-100 font-semibold animate-pulse"
+                                                    className="bg-red-100 text-red-700 hover:bg-red-100 font-semibold"
                                                 >
-                                                    {sneaker.availableStock} left
+                                                    Out of Stock
                                                 </Badge>
-                                            </div>
-                                        ) : (
-                                            <Badge
-                                                variant="secondary"
-                                                className="bg-green-100 text-green-700 hover:bg-green-100 font-semibold"
+                                            ) : sneaker.availableStock < 15 ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="bg-orange-100 text-orange-700 hover:bg-orange-100 font-semibold animate-pulse"
+                                                    >
+                                                        {sneaker.availableStock} left
+                                                    </Badge>
+                                                </div>
+                                            ) : (
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="bg-green-100 text-green-700 hover:bg-green-100 font-semibold"
+                                                >
+                                                    {sneaker.availableStock} available
+                                                </Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button
+                                                onClick={() => handleReserve(sneaker)}
+                                                disabled={sneaker.availableStock === 0 || isReserving}
+                                                className={`${hasReservation ? 'bg-purple-500 hover:bg-purple-600' : 'bg-[#90EE90] hover:bg-[#7CDA7C]'} text-slate-900 font-semibold shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                size="sm"
                                             >
-                                                {sneaker.availableStock} available
-                                            </Badge>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button
-                                            onClick={() => handleReserve(sneaker)}
-                                            disabled={sneaker.availableStock === 0}
-                                            className="bg-[#90EE90] hover:bg-[#7CDA7C] text-slate-900 font-semibold shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                            size="sm"
-                                        >
-                                            {sneaker.availableStock === 0 ? "Sold Out" : "Reserve"}
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                {isReserving ? (
+                                                    <>
+                                                        <div className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+                                                        Reserving...
+                                                    </>
+                                                ) : sneaker.availableStock === 0 ? (
+                                                    "Sold Out"
+                                                ) : hasReservation ? (
+                                                    "View Reservation"
+                                                ) : (
+                                                    "Reserve"
+                                                )}
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 )}
@@ -302,10 +562,10 @@ export function LiveDrops() {
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold">
-                            Confirm Your Reservation
+                            {currentReservation ? 'Complete Your Purchase' : 'Confirm Your Reservation'}
                         </DialogTitle>
                         <DialogDescription className="text-base">
-                            Review your selection and confirm within the time limit
+                            {currentReservation ? 'You have reserved this item. Complete your purchase before time runs out!' : 'Review your selection and confirm to reserve'}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -315,21 +575,21 @@ export function LiveDrops() {
                             <div className="flex items-center justify-center">
                                 <div className="relative">
                                     <div
-                                        className={`h-20 w-20 rounded-full flex items-center justify-center text-2xl font-bold ${countdown <= 3
-                                            ? "bg-red-100 text-red-600 animate-pulse"
-                                            : countdown <= 6
-                                                ? "bg-orange-100 text-orange-600"
-                                                : "bg-green-100 text-green-600"
+                                        className={`h-20 w-20 rounded-full flex items-center justify-center text-2xl font-bold ${countdown <= 10
+                                                ? "bg-red-100 text-red-600 animate-pulse"
+                                                : countdown <= 30
+                                                    ? "bg-orange-100 text-orange-600"
+                                                    : "bg-green-100 text-green-600"
                                             }`}
                                     >
                                         {countdown}
                                     </div>
                                     <Clock
-                                        className={`absolute -top-1 -right-1 h-6 w-6 ${countdown <= 3
-                                            ? "text-red-600"
-                                            : countdown <= 6
-                                                ? "text-orange-600"
-                                                : "text-green-600"
+                                        className={`absolute -top-1 -right-1 h-6 w-6 ${countdown <= 10
+                                                ? "text-red-600"
+                                                : countdown <= 30
+                                                    ? "text-orange-600"
+                                                    : "text-green-600"
                                             }`}
                                     />
                                 </div>
@@ -367,11 +627,28 @@ export function LiveDrops() {
                                 </div>
                             </div>
 
+                            {/* Error Message */}
+                            {error && (
+                                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 flex items-center gap-2">
+                                    <AlertCircle className="h-5 w-5 text-red-600" />
+                                    <p className="text-red-700 font-semibold text-sm">{error}</p>
+                                </div>
+                            )}
+
                             {/* Warning Message */}
-                            {countdown <= 3 && (
+                            {countdown <= 10 && countdown > 0 && (
                                 <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 text-center animate-pulse">
                                     <p className="text-red-700 font-semibold text-sm">
-                                        ⚠️ Time is running out! Confirm now or lose your spot
+                                        ⚠️ Time is running out! Complete your purchase now or lose your reservation
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Expired Message */}
+                            {countdown === 0 && (
+                                <div className="bg-gray-100 border-2 border-gray-300 rounded-lg p-3 text-center">
+                                    <p className="text-gray-700 font-semibold text-sm">
+                                        ⏰ Reservation has expired. The item has been returned to available stock.
                                     </p>
                                 </div>
                             )}
@@ -382,27 +659,29 @@ export function LiveDrops() {
                         <Button
                             variant="outline"
                             onClick={handleCloseModal}
-                            disabled={isConfirming}
+                            disabled={isPurchasing}
                             className="border-2"
                         >
-                            Cancel
+                            Close
                         </Button>
-                        <Button
-                            onClick={handleConfirmPurchase}
-                            disabled={countdown === 0 || isConfirming}
-                            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold shadow-lg disabled:opacity-50"
-                        >
-                            {isConfirming ? (
-                                <>
-                                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                    Confirming...
-                                </>
-                            ) : countdown === 0 ? (
-                                "Time Expired"
-                            ) : (
-                                "Confirm Purchase"
-                            )}
-                        </Button>
+                        {currentReservation ? (
+                            <Button
+                                onClick={handleCompletePurchase}
+                                disabled={countdown === 0 || isPurchasing}
+                                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold shadow-lg disabled:opacity-50"
+                            >
+                                {isPurchasing ? (
+                                    <>
+                                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                        Processing...
+                                    </>
+                                ) : countdown === 0 ? (
+                                    "Reservation Expired"
+                                ) : (
+                                    "Complete Purchase"
+                                )}
+                            </Button>
+                        ) : null}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

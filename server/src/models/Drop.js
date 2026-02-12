@@ -88,6 +88,18 @@ const Drop = sequelize.define('Drop', {
       }
     }
   },
+  reservedStock: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    field: 'reserved_stock',
+    validate: {
+      min: {
+        args: [0],
+        msg: 'Reserved stock must be a non-negative integer'
+      }
+    }
+  },
   dropStartTime: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -178,16 +190,19 @@ const Drop = sequelize.define('Drop', {
   ],
   hooks: {
     beforeValidate: (drop) => {
-      // Auto-calculate available stock based on total and sold
-      if (drop.totalStock !== undefined && drop.soldStock !== undefined) {
-        drop.availableStock = drop.totalStock - drop.soldStock;
+      // Auto-calculate available stock based on total, sold, and reserved
+      if (drop.totalStock !== undefined) {
+        const sold = drop.soldStock || 0;
+        const reserved = drop.reservedStock || 0;
+        drop.availableStock = drop.totalStock - sold - reserved;
       }
     },
     beforeCreate: (drop) => {
       // Initialize stocks properly
       if (drop.totalStock !== undefined) {
         drop.soldStock = drop.soldStock || 0;
-        drop.availableStock = drop.totalStock - drop.soldStock;
+        drop.reservedStock = drop.reservedStock || 0;
+        drop.availableStock = drop.totalStock - drop.soldStock - drop.reservedStock;
       }
     }
   }

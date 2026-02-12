@@ -15,6 +15,7 @@ export interface Drop {
   totalStock: number;
   availableStock: number;
   soldStock: number;
+  reservedStock?: number;
   dropStartTime: string;
   dropEndTime?: string;
   status: "upcoming" | "live" | "ended" | "cancelled";
@@ -32,6 +33,7 @@ export interface StockUpdate {
   totalStock: number;
   availableStock: number;
   soldStock: number;
+  reservedStock?: number;
   timestamp: string;
 }
 
@@ -86,6 +88,7 @@ export const useDropSocket = () => {
               totalStock: update.totalStock,
               availableStock: update.availableStock,
               soldStock: update.soldStock,
+              reservedStock: update.reservedStock || 0,
               updatedAt: update.timestamp,
             }
           : drop,
@@ -135,6 +138,42 @@ export const useDropSocket = () => {
     [],
   );
 
+  // Handle reservation created
+  const handleReservationCreated = useCallback((data: any) => {
+    console.log("🔖 Reservation created:", data);
+    // Stock will be updated via stock-updated event
+  }, []);
+
+  // Handle reservation expired
+  const handleReservationExpired = useCallback((data: any) => {
+    console.log("⏰ Reservation expired:", data);
+    // Stock will be updated via stock-recovered event
+  }, []);
+
+  // Handle reservation completed
+  const handleReservationCompleted = useCallback((data: any) => {
+    console.log("✅ Reservation completed:", data);
+    // Stock will be updated via stock-updated event
+  }, []);
+
+  // Handle stock recovered (from expired/cancelled reservations)
+  const handleStockRecovered = useCallback((update: StockUpdate) => {
+    console.log("♻️ Stock recovered:", update);
+    // Update drops with recovered stock
+    setDrops((prevDrops) =>
+      prevDrops.map((drop) =>
+        drop.id === update.dropId
+          ? {
+              ...drop,
+              availableStock: update.availableStock,
+              reservedStock: update.reservedStock || 0,
+              updatedAt: update.timestamp,
+            }
+          : drop,
+      ),
+    );
+  }, []);
+
   // Subscribe to socket events
   useEffect(() => {
     if (!socket) return;
@@ -143,18 +182,30 @@ export const useDropSocket = () => {
     socket.on("drop-created", handleDropCreated);
     socket.on("drop-updated", handleDropUpdated);
     socket.on("drop-deleted", handleDropDeleted);
+    socket.on("reservation-created", handleReservationCreated);
+    socket.on("reservation-expired", handleReservationExpired);
+    socket.on("reservation-completed", handleReservationCompleted);
+    socket.on("stock-recovered", handleStockRecovered);
 
     return () => {
       socket?.off("stock-updated", handleStockUpdate);
       socket?.off("drop-created", handleDropCreated);
       socket?.off("drop-updated", handleDropUpdated);
       socket?.off("drop-deleted", handleDropDeleted);
+      socket?.off("reservation-created", handleReservationCreated);
+      socket?.off("reservation-expired", handleReservationExpired);
+      socket?.off("reservation-completed", handleReservationCompleted);
+      socket?.off("stock-recovered", handleStockRecovered);
     };
   }, [
     handleStockUpdate,
     handleDropCreated,
     handleDropUpdated,
     handleDropDeleted,
+    handleReservationCreated,
+    handleReservationExpired,
+    handleReservationCompleted,
+    handleStockRecovered,
   ]);
 
   // Fetch initial drops data
@@ -175,6 +226,15 @@ export const useDropSocket = () => {
     }
   }, []);
 
+  // Manually refetch drops (useful for syncing with manual DB changes)
+  const refetchDrops = useCallback(
+    async (status?: string) => {
+      console.log("🔄 Manually refreshing drops...");
+      await fetchDrops(status);
+    },
+    [fetchDrops],
+  );
+
   // Join a specific drop room for targeted updates
   const joinDropRoom = useCallback((dropId: string) => {
     socket?.emit("join-drop", dropId);
@@ -191,6 +251,7 @@ export const useDropSocket = () => {
     drops,
     setDrops,
     fetchDrops,
+    refetchDrops,
     joinDropRoom,
     leaveDropRoom,
   };

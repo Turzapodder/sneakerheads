@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import database from './src/config/database.js';
 import { initializeSocket } from './src/config/socket.js';
 import { startCleanupScheduler, stopCleanupScheduler } from './src/services/reservationCleanup.js';
+import setupAssociations from './src/models/associations.js';
 import authRoutes from './src/routes/authRoutes.js';
 import dropRoutes from './src/routes/dropRoutes.js';
 import reservationRoutes from './src/routes/reservationRoutes.js';
